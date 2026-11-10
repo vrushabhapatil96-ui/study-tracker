@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html lang="en">  
 <head>  
 <meta charset="utf-8">  
@@ -25,8 +24,7 @@ input,select,textarea{width:100%;background:#081b39;border:1px solid #345078;col
 label{font-size:12px;color:var(--muted);display:block}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}  
 button{cursor:pointer}.btn{font-size:13px}.btn.small{padding:7px 10px;font-size:12px}.btn.danger{border-color:#7b424b;color:#ffc5c5;background:#3b1b2a}  
 .progress{height:10px;background:#07162e;border-radius:99px;overflow:hidden;margin:9px 0}.progress span{display:block;height:100%;background:linear-gradient(90deg,#caa64e,#f6e3a0);border-radius:99px;transition:width .25s}  
-.quest,.topic,.subject{border:1px solid var(--line);border-radius:12px;padding:11px;margin:8px 0;background:#0b2040;cursor:grab;user-select:none}  
-.quest:active,.topic:active,.subject:active{cursor:grabbing}  
+.quest,.topic,.subject{border:1px solid var(--line);border-radius:12px;padding:11px;margin:8px 0;background:#0b2040;touch-action:none}  
 .subject.dragging,.topic.dragging{opacity:0.4;border:2px dashed var(--gold)}  
 .quest.done{opacity:.68}.quest.done .qtitle{text-decoration:line-through}  
 .barwrap{height:130px;display:flex;align-items:end;gap:7px;padding:10px 2px 0}.barcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;gap:5px;min-width:0}.bar{width:100%;max-width:38px;background:linear-gradient(180deg,#f2dc9b,#c69c3f);border-radius:7px 7px 2px 2px;min-height:2px}.barcol small{font-size:10px;color:var(--muted)}.barcol b{font-size:10px;color:var(--gold2)}  
@@ -65,7 +63,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
 </section>  
 <section id="map" class="page">  
 <h2>Study Map</h2>  
-<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">MPSC syllabus subjects and topics are included as a starting structure. Long-press and drag subjects or topics to reorder them.</p></div>  
+<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">Drag and drop subjects or topics to reorder them (works with mouse and touch).</p></div>  
 <div id="subjects"></div>  
 </section>  
 <section id="quests" class="page">  
@@ -184,7 +182,7 @@ function renderMap(){
 function setupDragAndDrop(){  
  let dragSrcEl=null;  
  
- // Subject drag and drop  
+ // --- DESKTOP MOUSE DRAG & DROP ---  
  document.querySelectorAll('#subjects > .subject').forEach(item=>{  
   item.addEventListener('dragstart',e=>{  
    dragSrcEl=item;  
@@ -194,12 +192,8 @@ function setupDragAndDrop(){
   });  
   item.addEventListener('dragend',()=>{  
    item.classList.remove('dragging');  
-   document.querySelectorAll('#subjects > .subject').forEach(el=>el.style.borderTop='');  
   });  
-  item.addEventListener('dragover',e=>{  
-   e.preventDefault();  
-   e.dataTransfer.dropEffect='move';  
-  });  
+  item.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';});  
   item.addEventListener('drop',e=>{  
    e.stopPropagation();  
    if(dragSrcEl!==item && dragSrcEl.classList.contains('subject')){  
@@ -217,7 +211,6 @@ function setupDragAndDrop(){
   });  
  });  
  
- // Topic drag and drop  
  document.querySelectorAll('.topic-list .topic').forEach(item=>{  
   item.addEventListener('dragstart',e=>{  
    dragSrcEl=item;  
@@ -225,13 +218,8 @@ function setupDragAndDrop(){
    e.dataTransfer.setData('text/plain','topic:'+item.dataset.sid+':'+item.dataset.tid);  
    setTimeout(()=>item.classList.add('dragging'),0);  
   });  
-  item.addEventListener('dragend',()=>{  
-   item.classList.remove('dragging');  
-  });  
-  item.addEventListener('dragover',e=>{  
-   e.preventDefault();  
-   e.dataTransfer.dropEffect='move';  
-  });  
+  item.addEventListener('dragend',()=>{item.classList.remove('dragging');});  
+  item.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';});  
   item.addEventListener('drop',e=>{  
    e.stopPropagation();  
    if(dragSrcEl!==item && dragSrcEl.classList.contains('topic') && dragSrcEl.dataset.sid===item.dataset.sid){  
@@ -251,6 +239,75 @@ function setupDragAndDrop(){
    }  
   });  
  });  
+ 
+ // --- MOBILE TOUCH SUPPORT (LONG PRESS & DRAG) ---  
+ let touchItem=null, touchType=null, startY=0;  
+ 
+ function addTouchHandlers(selector, type){  
+  document.querySelectorAll(selector).forEach(el=>{  
+   el.addEventListener('touchstart',e=>{  
+    // Ignore if touching interactive elements (inputs, buttons, checkboxes)  
+    if(['INPUT','BUTTON','LABEL','TEXTAREA','SELECT'].includes(e.target.tagName)) return;  
+    touchItem=el;  
+    touchType=type;  
+    startY=e.touches[0].clientY;  
+    el.classList.add('dragging');  
+   }, {passive:true});  
+ 
+   el.addEventListener('touchmove',e=>{  
+    if(!touchItem) return;  
+    let currentY=e.touches[0].clientY;  
+    let diff=currentY-startY;  
+    touchItem.style.transform=`translateY(${diff}px)`;  
+   }, {passive:true});  
+ 
+   el.addEventListener('touchend',e=>{  
+    if(!touchItem) return;  
+    touchItem.classList.remove('dragging');  
+    touchItem.style.transform='';  
+    let endY=e.changedTouches[0].clientY;  
+    let targetEl=document.elementFromPoint(e.changedTouches[0].clientX, endY);  
+    if(targetEl){  
+     let dropTarget=targetEl.closest(selector);  
+     if(dropTarget && dropTarget!==touchItem){  
+      if(touchType==='subject'){  
+       let subjects=data.subjects;  
+       let srcId=touchItem.dataset.sid;  
+       let targetId=dropTarget.dataset.sid;  
+       let srcIdx=subjects.findIndex(s=>s.id===srcId);  
+       let targetIdx=subjects.findIndex(s=>s.id===targetId);  
+       if(srcIdx>-1 && targetIdx>-1){  
+        let [removed]=subjects.splice(srcIdx,1);  
+        subjects.splice(targetIdx,0,removed);  
+        save();  
+       }  
+      } else if(touchType==='topic'){  
+       if(touchItem.dataset.sid===dropTarget.dataset.sid){  
+        let sid=touchItem.dataset.sid;  
+        let subj=data.subjects.find(s=>s.id===sid);  
+        if(subj){  
+         let srcTid=touchItem.dataset.tid;  
+         let targetTid=dropTarget.dataset.tid;  
+         let srcIdx=subj.topics.findIndex(t=>t.id===srcTid);  
+         let targetIdx=subj.topics.findIndex(t=>t.id===targetTid);  
+         if(srcIdx>-1 && targetIdx>-1){  
+          let [removed]=subj.topics.splice(srcIdx,1);  
+          subj.topics.splice(targetIdx,0,removed);  
+          save();  
+         }  
+        }  
+       }  
+      }  
+     }  
+    }  
+    touchItem=null;  
+    touchType=null;  
+   });  
+  });  
+ }  
+ 
+ addTouchHandlers('#subjects > .subject', 'subject');  
+ addTouchHandlers('.topic-list .topic', 'topic');  
 }  
 function editSubject(sid){let s=data.subjects.find(x=>x.id===sid),n=prompt('Edit subject name:',s.name);if(!n||!n.trim())return;n=n.trim();if(data.subjects.some(x=>x.id!==sid&&x.name.toLowerCase()===n.toLowerCase()))return alert('Subject already exists.');s.name=n;save()}  
 function deleteSubject(sid){let s=data.subjects.find(x=>x.id===sid);if(!confirm('Delete '+s.name+' and all its topics?'))return;data.subjects=data.subjects.filter(x=>x.id!==sid);data.quests.forEach(q=>{if(q.subject===sid)q.subject=''});save()}  

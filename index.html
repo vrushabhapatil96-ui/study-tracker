@@ -23,8 +23,8 @@ h2{font-size:19px;margin:12px 0;color:var(--gold2)}h3{font-size:15px;margin:0 0 
 input,select,textarea{width:100%;background:#081b39;border:1px solid #345078;color:var(--ink);border-radius:10px;padding:11px;font:inherit;margin:5px 0 10px;min-width:0}  
 label{font-size:12px;color:var(--muted);display:block}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}  
 button{cursor:pointer}.btn{font-size:13px}.btn.small{padding:7px 10px;font-size:12px}.btn.danger{border-color:#7b424b;color:#ffc5c5;background:#3b1b2a}  
-.btn-arrow{padding:5px 8px;font-size:12px;line-height:1;background:var(--panel);color:var(--gold2);border:1px solid var(--line);border-radius:8px}  
-.btn-arrow:disabled{opacity:0.3;cursor:not-allowed}  
+.btn-arrow{padding:6px 10px;font-size:13px;line-height:1;background:#173464;color:var(--gold);border:1px solid var(--line);border-radius:8px;font-weight:bold}  
+.btn-arrow:disabled{opacity:0.25;cursor:not-allowed}  
 .progress{height:10px;background:#07162e;border-radius:99px;overflow:hidden;margin:9px 0}.progress span{display:block;height:100%;background:linear-gradient(90deg,#caa64e,#f6e3a0);border-radius:99px;transition:width .25s}  
 .quest,.topic,.subject{border:1px solid var(--line);border-radius:12px;padding:11px;margin:8px 0;background:#0b2040}  
 .quest.done{opacity:.68}.quest.done .qtitle{text-decoration:line-through}  
@@ -64,7 +64,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
 </section>  
 <section id="map" class="page">  
 <h2>Study Map</h2>  
-<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">Use the ▲ and ▼ buttons on subjects and topics to reorder your syllabus structure.</p></div>  
+<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">Use the ▲ and ▼ arrow buttons on the right side of subjects and topics to change their order.</p></div>  
 <div id="subjects"></div>  
 </section>  
 <section id="quests" class="page">  
@@ -82,7 +82,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
 </section>  
 </main><footer>Study Tracker · Your progress, one day at a time.</footer>  
 <script>  
-const KEY='studyTrackerV1';  
+const KEY='studyTrackerV2'; // Updated storage key to immediately refresh cached structure  
 const syllabus=[  
 ['Constitution & Polity',['Preamble and features','Fundamental Rights and Duties','Directive Principles','President and Vice-President','Parliament','Supreme Court and High Courts','Constitutional Bodies','Non-constitutional Bodies','Centre-State Relations','Emergency Provisions','Local Self Government']],  
 ['History',['Ancient India','Medieval India','Modern India','Indian National Movement','Maharashtra history and reformers']],  
@@ -96,6 +96,18 @@ const syllabus=[
 ];  
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};  
 let data=load();  
+
+// Migration helper from V1 to V2 if needed  
+if (!localStorage.getItem('studyTrackerV2') && localStorage.getItem('studyTrackerV1')) {  
+  try {  
+    let old = JSON.parse(localStorage.getItem('studyTrackerV1'));  
+    if(old && typeof old==='object') {  
+      data = old;  
+      save();  
+    }  
+  } catch(e){}  
+}  
+
 function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}  
 function defaultSubjects(){return syllabus.map(([name,topics])=>({id:id(),name,topics:topics.map(name=>({id:id(),name,done:false}))}))}  
 function load(){  

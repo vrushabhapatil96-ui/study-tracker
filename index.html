@@ -23,8 +23,8 @@ h2{font-size:19px;margin:12px 0;color:var(--gold2)}h3{font-size:15px;margin:0 0 
 input,select,textarea{width:100%;background:#081b39;border:1px solid #345078;color:var(--ink);border-radius:10px;padding:11px;font:inherit;margin:5px 0 10px;min-width:0}  
 label{font-size:12px;color:var(--muted);display:block}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}  
 button{cursor:pointer}.btn{font-size:13px}.btn.small{padding:7px 10px;font-size:12px}.btn.danger{border-color:#7b424b;color:#ffc5c5;background:#3b1b2a}  
-.btn-arrow{padding:6px 10px;font-size:13px;line-height:1;background:#173464;color:var(--gold);border:1px solid var(--line);border-radius:8px;font-weight:bold}  
-.btn-arrow:disabled{opacity:0.25;cursor:not-allowed}  
+.btn-arrow{padding:5px 9px;font-size:12px;line-height:1;background:#173464;color:var(--gold);border:1px solid var(--line);border-radius:8px;font-weight:bold}  
+.btn-arrow:disabled{opacity:0.2;cursor:not-allowed}  
 .progress{height:10px;background:#07162e;border-radius:99px;overflow:hidden;margin:9px 0}.progress span{display:block;height:100%;background:linear-gradient(90deg,#caa64e,#f6e3a0);border-radius:99px;transition:width .25s}  
 .quest,.topic,.subject{border:1px solid var(--line);border-radius:12px;padding:11px;margin:8px 0;background:#0b2040}  
 .quest.done{opacity:.68}.quest.done .qtitle{text-decoration:line-through}  
@@ -64,7 +64,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
 </section>  
 <section id="map" class="page">  
 <h2>Study Map</h2>  
-<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">Use the ▲ and ▼ arrow buttons on the right side of subjects and topics to change their order.</p></div>  
+<div class="card"><h3>Add a subject</h3><div class="row"><input id="subjectName" placeholder="e.g. Indian Polity" style="flex:1"><button class="btn primary" id="addSubject">Add subject</button></div><p class="muted">Use the ▲ and ▼ arrow buttons to move subjects and topics up or down.</p></div>  
 <div id="subjects"></div>  
 </section>  
 <section id="quests" class="page">  
@@ -82,7 +82,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;padding:18px}
 </section>  
 </main><footer>Study Tracker · Your progress, one day at a time.</footer>  
 <script>  
-const KEY='studyTrackerV2'; // Updated storage key to immediately refresh cached structure  
+const KEY='studyTrackerV3'; // Forced fresh key to bypass old browser cache  
 const syllabus=[  
 ['Constitution & Polity',['Preamble and features','Fundamental Rights and Duties','Directive Principles','President and Vice-President','Parliament','Supreme Court and High Courts','Constitutional Bodies','Non-constitutional Bodies','Centre-State Relations','Emergency Provisions','Local Self Government']],  
 ['History',['Ancient India','Medieval India','Modern India','Indian National Movement','Maharashtra history and reformers']],  
@@ -95,17 +95,21 @@ const syllabus=[
 ['Current Affairs',['National current affairs','International current affairs','Maharashtra current affairs','Reports, indices and awards']]  
 ];  
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};  
+
 let data=load();  
 
-// Migration helper from V1 to V2 if needed  
-if (!localStorage.getItem('studyTrackerV2') && localStorage.getItem('studyTrackerV1')) {  
-  try {  
-    let old = JSON.parse(localStorage.getItem('studyTrackerV1'));  
-    if(old && typeof old==='object') {  
-      data = old;  
-      save();  
-    }  
-  } catch(e){}  
+// Migrate data seamlessly from V1 or V2 if present  
+if(!localStorage.getItem('studyTrackerV3')) {  
+  let oldData = localStorage.getItem('studyTrackerV2') || localStorage.getItem('studyTrackerV1');  
+  if(oldData) {  
+    try {  
+      let parsed = JSON.parse(oldData);  
+      if(parsed && typeof parsed==='object') {  
+        data = parsed;  
+        save();  
+      }  
+    } catch(e){}  
+  }  
 }  
 
 function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}  
@@ -143,21 +147,17 @@ function setDailyGoal(){
 function render(){renderDashboard();renderMap();renderQuests();renderTime()}  
 function renderDashboard(){  
  let t=today(),todayQ=data.quests.filter(q=>q.date===t),done=todayQ.filter(q=>q.done).length;  
- 
  let todayQuestMins=todayQ.filter(q=>q.done).reduce((sum,q)=>sum+(+q.minutes||0),0);  
  let timeRec=data.times.find(x=>x.date===t);  
  let todayRecordMins=timeRec?+timeRec.study||0:0;  
  let totalTodayMins=todayQuestMins+todayRecordMins;  
  let totalTodayHours=totalTodayMins/60;  
- 
  let targetHours=data.dailyGoalHours||6;  
  let goalPct=Math.min(100,Math.round((totalTodayHours/targetHours)*100));  
- 
  document.getElementById('todayCount').textContent=done;  
  document.getElementById('todayPct').textContent=goalPct+'%';  
  document.getElementById('achievementProgress').style.width=goalPct+'%';  
  document.getElementById('goalHint').textContent=totalTodayHours.toFixed(1)+'h / '+targetHours+'h target completed';  
- 
  document.getElementById('questCount').textContent=done+' / '+todayQ.length;  
  document.getElementById('todayText').textContent='quests completed';  
  let xp=data.quests.filter(q=>q.done).reduce((s,q)=>s+(+q.xp||0),0);  
@@ -205,7 +205,6 @@ function renderMap(){
  </div>`).join('')}  
  </div>`).join('')||'<div class="empty">No subjects yet. Add your first subject.</div>';  
 }  
-
 function moveSubject(sid, dir){  
  let idx = data.subjects.findIndex(s=>s.id===sid);  
  if(idx < 0) return;  
@@ -217,7 +216,6 @@ function moveSubject(sid, dir){
   save();  
  }  
 }  
-
 function moveTopic(sid, tid, dir){  
  let s = data.subjects.find(x=>x.id===sid);  
  if(!s) return;  
@@ -231,7 +229,6 @@ function moveTopic(sid, tid, dir){
   save();  
  }  
 }  
-
 function editSubject(sid){let s=data.subjects.find(x=>x.id===sid),n=prompt('Edit subject name:',s.name);if(!n||!n.trim())return;n=n.trim();if(data.subjects.some(x=>x.id!==sid&&x.name.toLowerCase()===n.toLowerCase()))return alert('Subject already exists.');s.name=n;save()}  
 function deleteSubject(sid){let s=data.subjects.find(x=>x.id===sid);if(!confirm('Delete '+s.name+' and all its topics?'))return;data.subjects=data.subjects.filter(x=>x.id!==sid);data.quests.forEach(q=>{if(q.subject===sid)q.subject=''});save()}  
 function addTopic(sid){let el=document.getElementById('topic-'+sid),n=el.value.trim();if(!n)return;let s=data.subjects.find(x=>x.id===sid);if(s.topics.some(t=>t.name.toLowerCase()===n.toLowerCase()))return alert('Topic already exists.');s.topics.push({id:id(),name:n,done:false});save()}  
